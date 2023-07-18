@@ -1,12 +1,9 @@
 import time
-import json
 import undetected_chromedriver as uc
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
-
 
 
 
@@ -19,7 +16,9 @@ class Auth0:
         self.password = password
         self.driver = None
         self.headless = True
+        #self.headless = False
         self.pageload_max = 10
+        self.puid = None
 
         #mfa & proxy is ignored for now.
 
@@ -67,41 +66,52 @@ class Auth0:
         third_button.click()
        
 
+        def detect_puid(driver):
+            cookie = driver.get_cookie('_puid')
+            if cookie is not None:
+                self.puid = cookie["value"]
+            return cookie is not None
 
-        #load the whole page after login to get PUID
-        #needs some adjusting..
-        
-        #/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/svg    -> /html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div
+
         try:
+            # wait for /conversations to load, puid should be set by then
             WebDriverWait(driver, self.pageload_max).until(
-                    EC.invisibility_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/svg")),
-                    EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/div/span[1]"))
+                    EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/div/span[1]")),
             )
+            
+            ## acquire session.. still a hack
+            ajax_code = """
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', 'https://chat.openai.com/api/auth/session', true);
+                xhr.setRequestHeader('Content-type', 'application/json');
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
+                        if (xhr.status === 200) {
+                            window.ajaxResponse = JSON.parse(xhr.responseText);
+                        } else {
+                            throw new Error('AJAX request failed');
+                        }
+                    }
+                };
+
+                xhr.send();
+            """
+
+            driver.execute_script(ajax_code)
+            
+            ajax_response = WebDriverWait(driver, self.pageload_max).until(
+                lambda d: d.execute_script("return window.ajaxResponse;")
+            )  
+
+            self.access_token = ajax_response.get('accessToken')
+        
+            WebDriverWait(driver, self.pageload_max*0.1).until(detect_puid)
         except:
             print("timeout, either the site loaded very fast or theres a problem.")
 
-
-        for cookie in self.driver.get_cookies():
-            #print(cookie)
-            if cookie["name"] == "_puid":
-                self.puid = cookie["value"]
-
-
-
-        #todo, we can get the session without loading this, just the chat.openai.com is enough
-        driver.get("https://chat.openai.com/api/auth/session")
-        pre_element = driver.find_element(By.TAG_NAME, 'pre')
-        json_string = pre_element.text 
-
-
-
-        json_obj = json.loads(json_string)
-
-        access_token = json_obj.get('accessToken', None)
-        self.access_token = access_token
         self.quit()
-        return access_token
-
+        return self.access_token
 
     def quit(self):
         if self.driver is not None:
@@ -116,7 +126,7 @@ class Auth0:
 
 
     def get_puid(self) -> str:
-        return self.puid or ""
+        return self.puid
         
     def __del__(self):
         self.quit()
