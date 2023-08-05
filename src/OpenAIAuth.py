@@ -37,16 +37,16 @@ class Auth0:
         driver.get("https://chat.openai.com/auth/login")
         # Click the first button
         init_button = WebDriverWait(driver, self.pageload_max).until(
-            EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[4]/button[1]'))
+                EC.presence_of_element_located((By.XPATH, '//*[@id="__next"]/div[1]/div[2]/div[1]/div/button[1]'))
         )
         init_button.click()
 
 
 
-        first_button = WebDriverWait(driver, self.pageload_max).until(
-            EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[4]/button[1]'))
-        )
-        first_button.click()
+#        first_button = WebDriverWait(driver, self.pageload_max).until(
+#            EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[4]/button[1]'))
+#        )
+#        first_button.click()
 
         # Enter the username
         username_field = WebDriverWait(driver, self.pageload_max).until(
