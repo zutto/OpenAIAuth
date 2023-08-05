@@ -11,12 +11,12 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class Auth0:
 
-    def __init__(self, email: str, password: str, proxy: str = None, mfa: str = None):
-        self.username = email#username
+    def __init__(self, email_address: str, password: str, proxy: str = None, mfa: str = None):
+        self.username = email_address#username
         self.password = password
         self.driver = None
-        self.headless = True
-        #self.headless = False
+        #self.headless = True
+        self.headless = False
         self.pageload_max = 10
         self.puid = None
 
@@ -36,6 +36,13 @@ class Auth0:
         # Navigate to the login page
         driver.get("https://chat.openai.com/auth/login")
         # Click the first button
+        init_button = WebDriverWait(driver, self.pageload_max).until(
+            EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[4]/button[1]'))
+        )
+        init_button.click()
+
+
+
         first_button = WebDriverWait(driver, self.pageload_max).until(
             EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[4]/button[1]'))
         )
@@ -74,11 +81,7 @@ class Auth0:
 
 
         try:
-            # wait for /conversations to load, puid should be set by then
-            WebDriverWait(driver, self.pageload_max).until(
-                    EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/div/span[1]")),
-            )
-            
+           
             ## acquire session.. still a hack
             ajax_code = """
                 var xhr = new XMLHttpRequest();
@@ -99,6 +102,9 @@ class Auth0:
             """
 
             driver.execute_script(ajax_code)
+            WebDriverWait(driver, self.pageload_max).until(
+                    EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div[1]/div[1]/div/div/div/nav/div[3]/div/div/span[1]")),
+            )
             
             ajax_response = WebDriverWait(driver, self.pageload_max).until(
                 lambda d: d.execute_script("return window.ajaxResponse;")
@@ -114,7 +120,7 @@ class Auth0:
         return self.access_token
 
     def quit(self):
-        if self.driver is not None:
+        if self.driver and self.driver is not None:
             self.driver.quit()
             self.driver = None
 
